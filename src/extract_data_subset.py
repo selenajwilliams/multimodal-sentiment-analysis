@@ -9,7 +9,6 @@ train_cat_1 = '../MASAD/train/image/negative/apple/10250032023.jpg'
 
 import shutil
 import os
-import sys
 
 save_path = 'data'
 t_options = ['train', 'test']
