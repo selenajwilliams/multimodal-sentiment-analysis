@@ -3,8 +3,9 @@ import os
 import pandas as pd
 import glob
 import config
+from tqdm import tqdm
+import sys
 
-# from tqdm import tqdm
 # from PIL import Image
 # from torchvision import transforms
 # import torch
@@ -12,7 +13,6 @@ import config
 # from transformers import CLIPProcessor
 # from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score
 # import re
-# import sys
 # import sklearn
 # import pickle 
 
@@ -31,11 +31,12 @@ import config
 """ Section 0: Configuration
 """
 use_data_subset = config.use_data_subset
+data_dir = config.data_dir
 root_dir = config.root_dir
 save_path_raw = config.save_path_raw
 df_save_path = config.df_save_path
 
-""" Copied / new functions
+""" Section 1: Read the file paths into a dataframe
 """
 def validate_path(root_dir):
     if not os.path.exists(root_dir):
@@ -165,32 +166,18 @@ def init_data_frame(root_dir, df_save_path):
         df.to_csv(df_save_path, index=False)
         print(f"\nDataFrame saved at {df_save_path}")
 
-def extract_text(text_file):
-    # TODO: What does this function do?
-    """ opens a text file and returns each line?
-        returns corrupted/erroneous lines as empty strings?
+
+def main_read_data():
+    """ Ensures all paths are valid,
+        Returns df w/ the following columns: label, text_path, image_path
     """
-    try:
-        with open(text_file, 'r', encoding='utf-8') as file:
-            return file.read().strip()
-    except Exception as e:
-        # Instead of printing, return empty string or handle as needed
-        return ""
-
-# Save the DataFrame
-
-def main_load_data():
     print(f'validating the root directory path')
     validate_path(root_dir)
-    print_directory_structure(root_dir)
+    # print_directory_structure(root_dir)
 
     # create the dataframe by reading in CSV of text data
-    print(f'savingthe CSV of text and image filepaths to a dataframe')
+    print(f'saving the CSV of text and image filepaths to a dataframe')
     df = pd.read_csv(df_save_path)
-
-    # 3. Apply the extraction function with a progress bar
-    print(f'cleaning the text in the dataframe')
-    df['raw_text'] = df['text_path'].progress_apply(extract_text)
 
     # save df to pickle file; at this point, df columns are: 'raw_text' and 'text_path'
     print(f'saving the dataframe to a pickle file')
@@ -199,8 +186,55 @@ def main_load_data():
 
     # Display the first few entries
     print(f'first few entries of dataframe are:')
-    print(df[['text_path', 'raw_text']].head())
+    print(df[['text_path', 'image_path']].head())
+
+    return df
+
+
+""" Section 2: Pre Process the Data! This includes:
+    - clenaing the text
+    - getting CLIP sequence level embeddings
+    - 
+"""
+
+def extract_text(text_file):
+    # TODO: What does this function do?
+    """ opens a text file and returns each line?
+        returns corrupted/erroneous lines as empty strings?
+    """
+    path = f'{data_dir}raw/{text_file}'
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"Error: Text file at path: \n{path} \ncould not be found when reading in the text file for all text files in the dataset. Perhaps data directory is misconfigured in configuration file?")
+
+    try:
+        with open(path, 'r', encoding='utf-8') as file:
+            return file.read().strip()
+    except Exception as e:
+        # Instead of printing, return empty string or handle as needed
+        print(f'WARNING: when extracting text, the text file has ')
+        return ""
+
+
+def main_preprocess_data(df):
+    # Clean the text
+    print(f'cleaning the text in the dataframe')
+    tqdm.pandas()
+    df['raw_text'] = df['text_path'].progress_apply(extract_text)
+
+    
+
+    model_inputs = "empty string"
+    return model_inputs, df
+
+    
+
 
 
 if __name__ == "__main__":
-    main_load_data()
+    # TODO: add a check that reads the df from .pkl file if config boolean indicates to, otherwise runs main_read_data()
+    df = main_read_data()
+
+    print(f'calling main preprocess data')
+    model_inputs, df = main_preprocess_data(df)
+
+    
